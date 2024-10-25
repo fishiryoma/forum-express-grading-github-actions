@@ -1,13 +1,15 @@
 const bcrypt = require('bcryptjs')
-const db = require('../models')
+const db = require('../../models')
 const { User, Comment, Restaurant, Favorite, Like, Followship } = db
-const { localFileHandler } = require('../helpers/file-helper')
+const { localFileHandler } = require('../../helpers/file-helper')
 
 const userController = {
   signUpPage: (req, res) => res.render('signup'),
   signUp: (req, res, next) => {
     const { name, email, password, passwordCheck } = req.body
-    if (password !== passwordCheck) { throw new Error('Password does not match!') }
+    if (password !== passwordCheck) {
+      throw new Error('Password does not match!')
+    }
 
     User.findOne({ where: { email } })
       .then(user => {
@@ -94,8 +96,12 @@ const userController = {
       })
     ])
       .then(([restaurant, favorite]) => {
-        if (!restaurant) { throw new Error('This restaurant is not exist') }
-        if (favorite) { throw new Error('You already like this restaurant') }
+        if (!restaurant) {
+          throw new Error('This restaurant is not exist')
+        }
+        if (favorite) {
+          throw new Error('You already like this restaurant')
+        }
         return Favorite.create({
           userId: req.user.id,
           restaurantId
@@ -131,7 +137,9 @@ const userController = {
       })
     ])
       .then(([restaurant, like]) => {
-        if (!restaurant) { throw new Error('This restaurant is not exist') }
+        if (!restaurant) {
+          throw new Error('This restaurant is not exist')
+        }
         if (like) throw new Error('You already like this restaurant')
         return Like.create({
           userId: req.user.id,
@@ -209,7 +217,9 @@ const userController = {
     ])
       .then(([user, followship]) => {
         if (!user) throw new Error('User did not exist!')
-        if (!followship) { throw new Error("You haven't followed this user!") }
+        if (!followship) {
+          throw new Error("You haven't followed this user!")
+        }
         return followship.destroy()
       })
       .then(() => res.redirect('back'))
