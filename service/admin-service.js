@@ -1,0 +1,140 @@
+const { Restaurant, User, Category } = require("../models");
+const { localFileHandler } = require("../helpers/file-helper");
+
+const adminService = {
+    getRestaurants: (req, cb) => {
+        Restaurant.findAll({
+            raw: true,
+            nest: true,
+            include: [Category],
+        })
+            .then((restaurants) => {
+                return cb(null, { restaurants });
+            })
+            .catch((err) => cb(err));
+    },
+    createRestaurant: (req, cb) => {
+        Category.findAll({ raw: true })
+            .then((categories) => {
+                return cb(null, { categories });
+            })
+            .catch((err) => cb(err));
+    },
+    postRestaurant: (req, cb) => {
+        const { name, tel, address, openingHours, description, categoryId } =
+            req.body;
+        const { file } = req;
+        if (!name) throw new Error("Restaurant name is required!");
+        if (!categoryId) throw new Error("Category is required!");
+        localFileHandler(file)
+            .then((filePath) => {
+                Restaurant.create({
+                    name,
+                    tel,
+                    address,
+                    openingHours,
+                    description,
+                    categoryId,
+                    image: filePath || null,
+                });
+            })
+            .then((newRestaurant) => {
+                cb(null, { restaurant: newRestaurant });
+            })
+            .catch((err) => cb(err));
+    },
+    getRestaurant: (req, cb) => {
+        Restaurant.findByPk(req.params.id, {
+            raw: true,
+            nest: true,
+            include: [Category],
+        })
+            .then((restaurant) => {
+                if (!restaurant) {
+                    throw new Error("This Reataurant is not exist");
+                }
+                cb(null, { restaurant });
+            })
+            .catch((err) => cb(err));
+    },
+    editRestaurant: (req, cb) => {
+        return Promise.all([
+            Restaurant.findByPk(req.params.id, { raw: true }),
+            Category.findAll({ raw: true }),
+        ])
+
+            .then(([restaurant, categories]) => {
+                if (!restaurant) {
+                    throw new Error("This Reataurant is not exist");
+                }
+                cb(null, { restaurant, categories });
+            })
+            .catch((err) => cb(err));
+    },
+    putRestaurant: (req, res, next) => {
+        const { name, tel, address, openingHours, description, categoryId } =
+            req.body;
+        const { file } = req;
+        if (!name) throw new Error("Restaurant name is required!");
+
+        Promise.all([
+            Restaurant.findByPk(req.params.id),
+            localFileHandler(file),
+        ])
+            .then(([restaurant, filePath]) => {
+                if (!restaurant) throw new Error("No this restaurant");
+                return restaurant.update({
+                    name,
+                    tel,
+                    address,
+                    openingHours,
+                    description,
+                    categoryId,
+                    image: filePath || restaurant.image,
+                });
+            })
+            .then(() => {
+                req.flash("success_messages", "成功編輯一間餐廳");
+                res.redirect("/admin/restaurants");
+            })
+            .catch((err) => next(err));
+    },
+    deleteRestaurant: (req, cb) => {
+        Restaurant.findByPk(req.params.id)
+            .then((restaurant) => {
+                if (!restaurant) {
+                    const err = new Error("Restaurant didn't exist!");
+                    err.status = 404;
+                    throw err;
+                }
+                return restaurant.destroy();
+            })
+            .then((deletedRestaurant) => {
+                cb(null, deletedRestaurant);
+            })
+            .catch((err) => cb(err));
+    },
+    getUsers: (req, cb) => {
+        return User.findAll({ raw: true })
+            .then((users) => cb(null, { users }))
+            .catch((err) => cb(err));
+    },
+    patchUser: (req, res, next) => {
+        const id = req.params.id;
+        return User.findByPk(id)
+            .then((users) => {
+                if (!users) throw new Error("No this user");
+                if (users.email === "root@example.com") {
+                    req.flash("error_messages", "禁止變更 root 權限");
+                    return res.redirect("back");
+                }
+                return users.update({ isAdmin: !users.isAdmin });
+            })
+            .then(() => {
+                req.flash("success_messages", "使用者權限變更成功");
+                return res.redirect("/admin/users");
+            })
+            .catch((err) => next(err));
+    },
+};
+module.exports = adminService;
